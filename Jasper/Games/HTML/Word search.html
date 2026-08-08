@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Quest - Interactive Word Search</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 100%);
+            min-height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Custom scrollbar for word list */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Cell animations and active states */
+        .cell-active {
+            background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+            color: white !important;
+            transform: scale(0.92);
+            box-shadow: 0 0 15px rgba(236, 72, 153, 0.5);
+            z-index: 10;
+        }
+
+        .cell-found {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            color: white !important;
+            transform: scale(0.95);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.6); }
+            100% { transform: scale(0.95); }
+        }
+
+        /* Confetti piece styling */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f39c12;
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-slate-100 p-4 md:p-8 flex flex-col items-center justify-start overflow-x-hidden">
+
+    <!-- Header & Brand -->
+    <header class="w-full max-w-5xl text-center mb-6">
+        <div class="inline-flex items-center gap-3 px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-full mb-3 backdrop-blur-sm">
+            <span class="flex h-2.5 w-2.5 relative">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">Interactive Word Quest v2.2</span>
+        </div>
+        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent">
+            WORD SEEKER
+        </h1>
+        <p class="text-slate-400 text-sm md:text-base mt-2">Create custom puzzles, input words, and challenge your brain!</p>
+    </header>
+
+    <!-- Main Game Wrapper -->
+    <main class="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- Left Column: Controls & Info -->
+        <section class="lg:col-span-4 space-y-6 flex flex-col h-full">
+            
+            <!-- Dashboard / Stats -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-xl flex flex-row lg:flex-col justify-around lg:justify-start gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400">
+                        <i class="fa-solid fa-clock text-lg" id="timer-icon"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold" id="timer-label">Time Elapsed</div>
+                        <div id="game-timer" class="text-xl md:text-2xl font-black text-slate-100 tracking-mono">00:00</div>
+                    </div>
+                </div>
+
+                <div class="h-10 w-px lg:h-px lg:w-full bg-slate-800"></div>
+
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                        <i class="fa-solid fa-square-poll-horizontal text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Progress</div>
+                        <div class="text-xl md:text-2xl font-black text-slate-100">
+                            <span id="words-found-count">0</span>/<span id="total-words-count">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="h-10 w-px lg:h-px lg:w-full bg-slate-800"></div>
+
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/30 flex items-center justify-center text-violet-400">
+                        <i class="fa-solid fa-star text-lg"></i>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Score</div>
+                        <div id="game-score" class="text-xl md:text-2xl font-black text-slate-100">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Configuration Card with Tabbed Modes -->
+            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-xl space-y-4">
+                <h3 class="text-md font-bold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-pink-400"></i> Game Setup
+                </h3>
+
+                <!-- Tab Selector for Modes -->
+                <div class="flex border-b border-slate-800 p-0.5 bg-slate-950/80 rounded-xl">
+                    <button id="tab-presets" class="flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/20 focus:outline-none transition-all">
+                        🎯 Themes
+                    </button>
+                    <button id="tab-custom" class="flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg text-slate-400 hover:text-slate-200 border border-transparent focus:outline-none transition-all">
+                        ✏️ Custom Words
+                    </button>
+                </div>
+                
+                <!-- Category Select (Presets Tab Content) -->
+                <div id="presets-panel" class="space-y-1.5">
+                    <label class="text-xs text-slate-400 font-semibold uppercase">Choose Theme Preset</label>
+                    <select id="category-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-300 text-sm focus:outline-none focus:border-pink-500 transition-colors">
+                        <option value="space">🌌 Space & Cosmos</option>
+                        <option value="animals">🐾 Wild Animals</option>
+                        <option value="food">🍕 Delicious Food</option>
+                        <option value="tech">💻 Technology & Coding</option>
+                    </select>
+                </div>
+
+                <!-- Custom Word Textarea (Custom Words Tab Content) -->
+                <div id="custom-panel" class="space-y-3 hidden">
+                    <div class="space-y-1.5">
+                        <label class="text-xs text-slate-400 font-semibold uppercase">Your Custom Word List</label>
+                        <textarea id="custom-words-input" rows="3" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-300 text-xs focus:outline-none focus:border-pink-500 transition-colors custom-scrollbar" placeholder="Type words separated by commas or new lines. E.g. SMILE, HAPPY, FRIEND, JOY, SUMMER"></textarea>
+                        <p class="text-[10px] text-slate-500">Max 12 words, letters only. Words longer than the grid size will be skipped.</p>
+                    </div>
+
+                    <!-- Idea Packs -->
+                    <div class="space-y-1.5">
+                        <label class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">💡 Quick Word Packs</label>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" onclick="loadWordPack('happy')" class="text-[11px] px-2 py-1 bg-slate-800 hover:bg-slate-700 text-pink-300 rounded-lg border border-slate-700 transition-colors">😊 Happy Vibes</button>
+                            <button type="button" onclick="loadWordPack('summer')" class="text-[11px] px-2 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg border border-slate-700 transition-colors">☀️ Summer Fun</button>
+                            <button type="button" onclick="loadWordPack('school')" class="text-[11px] px-2 py-1 bg-slate-800 hover:bg-slate-700 text-emerald-300 rounded-lg border border-slate-700 transition-colors">🎒 School Days</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Difficulty & Grid Size -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                        <label class="text-xs text-slate-400 font-semibold uppercase">Grid Size</label>
+                        <select id="grid-size-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-300 text-sm focus:outline-none focus:border-pink-500 transition-colors">
+                            <option value="10">10 x 10</option>
+                            <option value="12" selected>12 x 12 (Optimal)</option>
+                            <option value="14">14 x 14</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs text-slate-400 font-semibold uppercase">Difficulty</label>
+                        <select id="difficulty-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-300 text-sm focus:outline-none focus:border-pink-500 transition-colors">
+                            <option value="easy">Easy (➡️ ⬇️)</option>
+                            <option value="medium" selected>Medium (+ ↘️)</option>
+                            <option value="hard">Hard (+ Backwards)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Zen / Timer Mode Selector -->
+                <div class="flex items-center justify-between p-3 bg-slate-950/50 rounded-xl border border-slate-800/80">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-slate-200 uppercase tracking-wide">Zen Mode</span>
+                        <span class="text-[10px] text-slate-400">Play without a countdown/timer</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="zen-mode-toggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <button id="btn-generate" class="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-pink-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-arrows-rotate"></i> Generate Puzzle
+                </button>
+            </div>
+
+            <!-- Feedback Message Box -->
+            <div id="feedback-box" class="hidden rounded-xl p-3 text-center text-sm font-semibold transition-all"></div>
+
+        </section>
+
+        <!-- Center/Right Column: The Grid & Word Checklist -->
+        <section class="lg:col-span-8 grid grid-cols-1 md:grid-cols-12 gap-6">
+            
+            <!-- The Game Board (Grid) -->
+            <div class="md:col-span-8 flex flex-col items-center">
+                <div class="w-full bg-slate-900/60 border border-slate-800 rounded-2xl p-4 md:p-6 backdrop-blur-md shadow-xl flex items-center justify-center relative">
+                    <!-- Overlays & Message layers -->
+                    <div id="success-overlay" class="absolute inset-0 bg-slate-950/90 rounded-2xl flex flex-col items-center justify-center gap-4 z-50 p-6 opacity-0 pointer-events-none transition-opacity duration-300">
+                        <div class="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-4xl animate-bounce">
+                            <i class="fa-solid fa-trophy"></i>
+                        </div>
+                        <h2 class="text-2xl md:text-3xl font-extrabold text-slate-100">Puzzle Complete!</h2>
+                        <p class="text-slate-400 text-sm text-center max-w-sm">Awesome job! You found all the hidden words with a final score of <span id="final-score" class="font-bold text-emerald-400">0</span>!<span id="final-time-section" class="block mt-1">Completion time: <span id="final-time" class="font-bold text-white">00:00</span></span></p>
+                        <button id="btn-play-again" class="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold rounded-xl shadow-md transition-all">
+                            Play Again
+                        </button>
+                    </div>
+
+                    <!-- Touch/Mouse Grid Container -->
+                    <div id="wordsearch-grid-container" class="w-full aspect-square max-w-[450px] touch-none grid bg-slate-950/80 p-2 rounded-xl border border-slate-800 gap-1 select-none">
+                        <!-- Cells dynamically generated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Word Checklist -->
+            <div class="md:col-span-4 bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-md shadow-xl flex flex-col h-full min-h-[250px] md:min-h-[400px]">
+                <h3 class="text-md font-bold text-slate-200 flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                    <span class="flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-emerald-400"></i> Word Checklist
+                    </span>
+                    <button id="btn-reveal" class="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1 transition-colors" title="Show a hidden word">
+                        <i class="fa-solid fa-eye text-[10px]"></i> Hint
+                    </button>
+                </h3>
+                
+                <!-- Word Items list -->
+                <div id="words-list" class="flex-1 overflow-y-auto custom-scrollbar grid grid-cols-2 md:grid-cols-1 gap-2 pr-1">
+                    <!-- Word bubbles added here -->
+                </div>
+
+                <div class="mt-4 pt-3 border-t border-slate-800/60 text-center">
+                    <p class="text-[10px] text-pink-400 font-bold mb-1">⭐ Scoring Rule: Shorter words are worth more points!</p>
+                    <p class="text-[10px] text-slate-500">💡 Drag across the letters to select a word. They can be forward, backward, or diagonal!</p>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Confetti Container -->
+    <div id="confetti-container" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <!-- JavaScript logic -->
+    <script>
+        // Predefined Themes & Words (Uppercase only, letters only)
+        const categories = {
+            space: ["GALAXY", "NEBULA", "PLANET", "STAR", "COMET", "METEOR", "ORBIT", "GRAVITY", "COSMOS", "SUN", "MOON", "ROCKET"],
+            animals: ["LEOPARD", "TIGER", "DOLPHIN", "ELEPHANT", "PANDA", "GIRAFFE", "MONKEY", "PENGUIN", "CHAMELEON", "EAGLE", "KOALA", "ZEBRA"],
+            food: ["PIZZA", "BURGER", "PASTA", "TACO", "SUSHI", "DONUT", "WAFFLE", "SALAD", "COOKIES", "PANCAKE", "AVOCADO", "LASAGNA"],
+            tech: ["PYTHON", "JAVASCRIPT", "HTML", "GITHUB", "SERVER", "DATABASE", "ROUTER", "SOFTWARE", "INTERNET", "GEMINI", "AI", "REACT"]
+        };
+
+        const wordPacks = {
+            happy: "SMILE, HAPPY, FRIEND, KINDNESS, LAUGH, SUNSHINE, SPARKLE, JOY, CHEERFUL, PLAYFUL",
+            summer: "SUNNY, BEACH, POOL, SHADOW, ICECREAM, CAMPFIRE, OUTDOORS, NATURE, CABIN, RECREATION",
+            school: "BOOKS, TEACHER, RECESS, SCIENCE, PENCIL, BRAIN, LEARN, CLASSROOM, ART, LIBRARY"
+        };
+
+        // State variables
+        let activeTab = 'presets'; // 'presets' or 'custom'
+        let words = [];
+        let gridSize = 12;
+        let grid = [];
+        let solutionGrid = []; // Stores matching word references per cell
+        let placedWordsMeta = []; // Meta info about placed words: {word, path: [{r, c}]}
+        
+        let startCell = null;
+        let isSelecting = false;
+        let selectedPath = [];
+        let foundWords = new Set();
+        let score = 0;
+        let timeElapsed = 0;
+        let timerInterval = null;
+
+        // Cache DOM elements
+        const tabPresets = document.getElementById('tab-presets');
+        const tabCustom = document.getElementById('tab-custom');
+        const presetsPanel = document.getElementById('presets-panel');
+        const customPanel = document.getElementById('custom-panel');
+
+        const categorySelect = document.getElementById('category-select');
+        const customWordsInput = document.getElementById('custom-words-input');
+        const gridSizeSelect = document.getElementById('grid-size-select');
+        const difficultySelect = document.getElementById('difficulty-select');
+        const btnGenerate = document.getElementById('btn-generate');
+        const gameTimer = document.getElementById('game-timer');
+        const timerIcon = document.getElementById('timer-icon');
+        const timerLabel = document.getElementById('timer-label');
+        const zenModeToggle = document.getElementById('zen-mode-toggle');
+        const wordsFoundCount = document.getElementById('words-found-count');
+        const totalWordsCount = document.getElementById('total-words-count');
+        const gameScore = document.getElementById('game-score');
+        const gridContainer = document.getElementById('wordsearch-grid-container');
+        const wordsListContainer = document.getElementById('words-list');
+        const feedbackBox = document.getElementById('feedback-box');
+        const btnReveal = document.getElementById('btn-reveal');
+        const successOverlay = document.getElementById('success-overlay');
+        const btnPlayAgain = document.getElementById('btn-play-again');
+        const finalTime = document.getElementById('final-time');
+        const finalTimeSection = document.getElementById('final-time-section');
+        const finalScore = document.getElementById('final-score');
+        const confettiContainer = document.getElementById('confetti-container');
+
+        // Tab Switching Logic
+        tabPresets.addEventListener('click', () => {
+            activeTab = 'presets';
+            tabPresets.className = "flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/20 focus:outline-none transition-all";
+            tabCustom.className = "flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg text-slate-400 hover:text-slate-200 border border-transparent focus:outline-none transition-all";
+            presetsPanel.classList.remove('hidden');
+            customPanel.classList.add('hidden');
+        });
+
+        tabCustom.addEventListener('click', () => {
+            activeTab = 'custom';
+            tabCustom.className = "flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/20 focus:outline-none transition-all";
+            tabPresets.className = "flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg text-slate-400 hover:text-slate-200 border border-transparent focus:outline-none transition-all";
+            customPanel.classList.remove('hidden');
+            presetsPanel.classList.add('hidden');
+            
+            // Auto pre-populate custom words input if empty
+            if (!customWordsInput.value.trim()) {
+                loadWordPack('happy');
+            }
+        });
+
+        // Quick Word Pack Loader
+        function loadWordPack(packName) {
+            if (wordPacks[packName]) {
+                customWordsInput.value = wordPacks[packName];
+                showFeedback(`Loaded "${packName.toUpperCase()}" Word Pack!`, "info");
+            }
+        }
+
+        // Calculate dynamic points (shorter words are worth more)
+        function calculateWordValue(word) {
+            // Formula: Base 100 points, subtract 5 points per character. 
+            // Ensures shorter words are worth more. Min value capped at 10.
+            return Math.max(10, 100 - (word.length * 5));
+        }
+
+        // Initialize Game
+        function initGame() {
+            // Read settings
+            gridSize = parseInt(gridSizeSelect.value, 10);
+            
+            // Set up words depending on selected Mode Tab
+            if (activeTab === 'custom') {
+                const text = customWordsInput.value.toUpperCase();
+                // Match words, filter non-A-Z, filter short/long words
+                words = text.split(/[\n,]+/)
+                            .map(w => w.replace(/[^A-Z]/g, '').trim())
+                            .filter(w => w.length > 1);
+                
+                // Clean and check word list length
+                if (words.length === 0) {
+                    showFeedback("Please enter at least 3 valid words inside the custom box!", "error");
+                    return;
+                }
+
+                // Warn about any words that are too long for the selected grid size
+                const originalCount = words.length;
+                words = words.filter(w => w.length <= gridSize);
+                if (words.length === 0) {
+                    showFeedback(`All entered words are longer than your ${gridSize}x${gridSize} grid!`, "error");
+                    return;
+                } else if (words.length < originalCount) {
+                    showFeedback(`Note: Dropped ${originalCount - words.length} words that are too long for the grid.`, "info");
+                }
+
+                // Cap custom words list to max optimal based on grid size
+                const maxWordsMap = { 10: 8, 12: 10, 14: 12 };
+                words = words.slice(0, maxWordsMap[gridSize] || 10);
+            } else {
+                // Presets tab
+                const category = categorySelect.value;
+                words = [...categories[category]];
+                words = words.sort(() => 0.5 - Math.random());
+                const maxWordsMap = { 10: 7, 12: 10, 14: 12 };
+                words = words.slice(0, maxWordsMap[gridSize] || 10);
+            }
+
+            // Clean state & Reset score completely
+            foundWords.clear();
+            score = 0;
+            timeElapsed = 0;
+            placedWordsMeta = [];
+            gameScore.textContent = score;
+            wordsFoundCount.textContent = "0";
+            totalWordsCount.textContent = words.length;
+            successOverlay.classList.add('opacity-0', 'pointer-events-none');
+
+            // Generate Grid
+            generatePuzzle();
+            renderGrid();
+            renderWordList();
+            
+            // Start / Setup Timer
+            startTimer();
+            showFeedback(`Generated! Find all ${words.length} hidden words!`, "success");
+        }
+
+        // Show Feedback bar
+        function showFeedback(msg, type) {
+            feedbackBox.classList.remove('hidden', 'bg-emerald-500/20', 'text-emerald-400', 'bg-red-500/20', 'text-red-400', 'bg-blue-500/20', 'text-blue-400');
+            if (type === 'success') {
+                feedbackBox.classList.add('bg-emerald-500/20', 'text-emerald-400');
+            } else if (type === 'error') {
+                feedbackBox.classList.add('bg-red-500/20', 'text-red-400');
+            } else {
+                feedbackBox.classList.add('bg-blue-500/20', 'text-blue-400');
+            }
+            feedbackBox.textContent = msg;
+            feedbackBox.classList.remove('hidden');
+            
+            // Auto hide after 3.5s
+            clearTimeout(feedbackBox.timeoutId);
+            feedbackBox.timeoutId = setTimeout(() => {
+                feedbackBox.classList.add('hidden');
+            }, 3500);
+        }
+
+        // Timer Control with Zen Mode support
+        function startTimer() {
+            clearInterval(timerInterval);
+            const isZen = zenModeToggle.checked;
+
+            if (isZen) {
+                gameTimer.textContent = "Zen 🌸";
+                timerIcon.className = "fa-solid fa-seedling text-lg";
+                timerLabel.textContent = "Game Mode";
+            } else {
+                gameTimer.textContent = "00:00";
+                timerIcon.className = "fa-solid fa-clock text-lg";
+                timerLabel.textContent = "Time Elapsed";
+                timerInterval = setInterval(() => {
+                    timeElapsed++;
+                    const mins = String(Math.floor(timeElapsed / 60)).padStart(2, '0');
+                    const secs = String(timeElapsed % 60).padStart(2, '0');
+                    gameTimer.textContent = `${mins}:${secs}`;
+                }, 1000);
+            }
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // Generate Board Structure
+        function generatePuzzle() {
+            // Initialize empty grid with spaces
+            grid = Array(gridSize).fill(null).map(() => Array(gridSize).fill(' '));
+            solutionGrid = Array(gridSize).fill(null).map(() => Array(gridSize).fill(null));
+
+            const difficulty = difficultySelect.value;
+            
+            // Available Directions based on difficulty
+            // format: [row_offset, col_offset]
+            let directions = [];
+            if (difficulty === 'easy') {
+                directions = [
+                    [0, 1],  // Right
+                    [1, 0]   // Down
+                ];
+            } else if (difficulty === 'medium') {
+                directions = [
+                    [0, 1],   // Right
+                    [1, 0],   // Down
+                    [1, 1],   // Diagonal Down-Right
+                    [-1, 1]   // Diagonal Up-Right
+                ];
+            } else { // Hard (Includes backwards)
+                directions = [
+                    [0, 1], [0, -1],   // Right, Left
+                    [1, 0], [-1, 0],   // Down, Up
+                    [1, 1], [-1, -1],  // Diagonals
+                    [-1, 1], [1, -1]
+                ];
+            }
+
+            // Attempt to place each word
+            words = words.map(w => w.toUpperCase());
+            const placedWords = [];
+
+            for (const word of words) {
+                let placed = false;
+                // Try up to 150 times to position word randomly
+                for (let attempt = 0; attempt < 150; attempt++) {
+                    const dir = directions[Math.floor(Math.random() * directions.length)];
+                    const rStep = dir[0];
+                    const cStep = dir[1];
+                    
+                    // Determine bounds based on direction offsets
+                    const startRow = rStep < 0 ? word.length - 1 : 0;
+                    const endRow = rStep > 0 ? gridSize - word.length : gridSize - 1;
+                    const startCol = cStep < 0 ? word.length - 1 : 0;
+                    const endCol = cStep > 0 ? gridSize - word.length : gridSize - 1;
+
+                    if (endRow < startRow || endCol < startCol) continue;
+
+                    const row = Math.floor(Math.random() * (endRow - startRow + 1)) + startRow;
+                    const col = Math.floor(Math.random() * (endCol - startCol + 1)) + startCol;
+
+                    // Validate compatibility with existing letters
+                    let fits = true;
+                    for (let i = 0; i < word.length; i++) {
+                        const targetR = row + i * rStep;
+                        const targetC = col + i * cStep;
+                        const currentVal = grid[targetR][targetC];
+                        if (currentVal !== ' ' && currentVal !== word[i]) {
+                            fits = false;
+                            break;
+                        }
+                    }
+
+                    if (fits) {
+                        // Place word & store meta for solution/highlights
+                        const wordPath = [];
+                        for (let i = 0; i < word.length; i++) {
+                            const targetR = row + i * rStep;
+                            const targetC = col + i * cStep;
+                            grid[targetR][targetC] = word[i];
+                            wordPath.push({ r: targetR, c: targetC });
+                        }
+                        placedWordsMeta.push({ word, path: wordPath });
+                        placedWords.push(word);
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+
+            // Keep only placed words in active list
+            words = placedWords;
+            totalWordsCount.textContent = words.length;
+
+            // Fill empty cells with random letters
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    if (grid[r][c] === ' ') {
+                        grid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
+                    }
+                }
+            }
+        }
+
+        // Render Grid UI
+        function renderGrid() {
+            gridContainer.innerHTML = '';
+            // Setup grid dynamic styling
+            gridContainer.style.gridTemplateRows = `repeat(${gridSize}, minmax(0, 1fr))`;
+            gridContainer.style.gridTemplateColumns = `repeat(${gridSize}, minmax(0, 1fr))`;
+
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = "flex items-center justify-center font-bold text-base md:text-lg select-none rounded bg-slate-900 border border-slate-800 text-slate-300 cursor-pointer active:scale-95 transition-all";
+                    cell.textContent = grid[r][c];
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    
+                    // Attach interaction listeners
+                    cell.addEventListener('mousedown', handleStart);
+                    cell.addEventListener('mouseenter', handleEnter);
+                    
+                    gridContainer.appendChild(cell);
+                }
+            }
+
+            // Universal mouse/touch listeners bound on window to prevent stuck selections
+            window.removeEventListener('mouseup', handleEnd);
+            window.addEventListener('mouseup', handleEnd);
+
+            gridContainer.removeEventListener('touchstart', handleTouchStart);
+            gridContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            gridContainer.removeEventListener('touchmove', handleTouchMove);
+            gridContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+            gridContainer.removeEventListener('touchend', handleTouchEnd);
+            gridContainer.addEventListener('touchend', handleTouchEnd);
+        }
+
+        // Render Word List UI (Includes point values directly next to words)
+        function renderWordList() {
+            wordsListContainer.innerHTML = '';
+            words.forEach(word => {
+                const wordValue = calculateWordValue(word);
+                const wordEl = document.createElement('div');
+                wordEl.id = `wl-${word}`;
+                wordEl.className = "flex items-center justify-between px-3 py-2 bg-slate-950/70 border border-slate-800/80 rounded-xl text-slate-300 text-xs font-semibold tracking-wide transition-all";
+                wordEl.innerHTML = `
+                    <div class="flex flex-col">
+                        <span>${word}</span>
+                        <span class="text-[9px] text-pink-400 font-bold">${wordValue} pts</span>
+                    </div>
+                    <i class="fa-solid fa-circle-notch text-[10px] text-slate-600 animate-spin"></i>
+                `;
+                wordsListContainer.appendChild(wordEl);
+            });
+        }
+
+        // Core Drag-Selection handlers (Mouse)
+        function handleStart(e) {
+            e.preventDefault();
+            isSelecting = true;
+            const r = parseInt(this.dataset.row, 10);
+            const c = parseInt(this.dataset.col, 10);
+            startCell = { r, c };
+            selectedPath = [startCell];
+            highlightPath();
+        }
+
+        function handleEnter(e) {
+            if (!isSelecting || !startCell) return;
+            const currentR = parseInt(this.dataset.row, 10);
+            const currentC = parseInt(this.dataset.col, 10);
+            
+            calculatePath(startCell.r, startCell.c, currentR, currentC);
+            highlightPath();
+        }
+
+        function handleEnd() {
+            if (!isSelecting) return;
+            isSelecting = false;
+            evaluateSelection();
+        }
+
+        // Touch handlers (Mobile Support)
+        function handleTouchStart(e) {
+            if (e.touches.length === 0) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target && target.dataset.row) {
+                isSelecting = true;
+                const r = parseInt(target.dataset.row, 10);
+                const c = parseInt(target.dataset.col, 10);
+                startCell = { r, c };
+                selectedPath = [startCell];
+                highlightPath();
+            }
+        }
+
+        function handleTouchMove(e) {
+            if (!isSelecting || !startCell || e.touches.length === 0) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const target = document.elementFromPoint(touch.clientX, touch.clientY);
+            if (target && target.dataset.row) {
+                const currentR = parseInt(target.dataset.row, 10);
+                const currentC = parseInt(target.dataset.col, 10);
+                calculatePath(startCell.r, startCell.c, currentR, currentC);
+                highlightPath();
+            }
+        }
+
+        // Trigger evaluations when touches lift
+        function handleTouchEnd() {
+            if (!isSelecting) return;
+            isSelecting = false;
+            evaluateSelection();
+        }
+
+        // Determine inline straight paths (horizontal, vertical, diagonal)
+        function calculatePath(r1, c1, r2, c2) {
+            const rowDiff = r2 - r1;
+            const colDiff = c2 - c1;
+            
+            // Determine coordinate direction offsets
+            let rStep = 0;
+            let cStep = 0;
+            
+            if (rowDiff === 0) { // Horizontal
+                rStep = 0;
+                cStep = colDiff > 0 ? 1 : -1;
+            } else if (colDiff === 0) { // Vertical
+                rStep = rowDiff > 0 ? 1 : -1;
+                cStep = 0;
+            } else if (Math.abs(rowDiff) === Math.abs(colDiff)) { // Diagonal
+                rStep = rowDiff > 0 ? 1 : -1;
+                cStep = colDiff > 0 ? 1 : -1;
+            } else {
+                // Invalid path, stick with last known path if any
+                return;
+            }
+
+            // Build sequence of coordinates
+            const steps = Math.max(Math.abs(rowDiff), Math.abs(colDiff));
+            selectedPath = [];
+            for (let i = 0; i <= steps; i++) {
+                selectedPath.push({
+                    r: r1 + i * rStep,
+                    c: c1 + i * cStep
+                });
+            }
+        }
+
+        // Active selection styling
+        function highlightPath() {
+            // Clear current path styles (keep found styles intact)
+            document.querySelectorAll('#wordsearch-grid-container > div').forEach(el => {
+                el.classList.remove('cell-active');
+            });
+
+            selectedPath.forEach(pt => {
+                const cell = getCellEl(pt.r, pt.c);
+                if (cell) {
+                    cell.classList.add('cell-active');
+                }
+            });
+        }
+
+        // Check if selected letters correspond to valid words
+        function evaluateSelection() {
+            if (selectedPath.length < 2) {
+                clearHighlight();
+                return;
+            }
+
+            // Form selection string forward and backward
+            let wordForward = "";
+            let wordBackward = "";
+            selectedPath.forEach(pt => {
+                const cell = getCellEl(pt.r, pt.c);
+                if (cell) {
+                    wordForward += cell.textContent;
+                }
+            });
+            wordBackward = wordForward.split('').reverse().join('');
+
+            let matchedWord = null;
+            if (words.includes(wordForward) && !foundWords.has(wordForward)) {
+                matchedWord = wordForward;
+            } else if (words.includes(wordBackward) && !foundWords.has(wordBackward)) {
+                matchedWord = wordBackward;
+            }
+
+            if (matchedWord) {
+                markWordFound(matchedWord, selectedPath);
+            } else {
+                clearHighlight();
+            }
+        }
+
+        // Mark found words and update scoring
+        function markWordFound(word, path) {
+            foundWords.add(word);
+            
+            // Play visual pop effects on selected path
+            path.forEach(pt => {
+                const cell = getCellEl(pt.r, pt.c);
+                if (cell) {
+                    cell.classList.remove('cell-active');
+                    cell.classList.add('cell-found');
+                }
+            });
+
+            const pointsGained = calculateWordValue(word);
+
+            // Update List Checkbox UI (keep word value indicator)
+            const wordListEl = document.getElementById(`wl-${word}`);
+            if (wordListEl) {
+                wordListEl.className = "flex items-center justify-between px-3 py-2 bg-emerald-950/40 border border-emerald-500/30 rounded-xl text-emerald-400 text-xs font-bold tracking-wide transition-all scale-105";
+                wordListEl.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="line-through opacity-80">${word}</span>
+                        <span class="text-[9px] text-emerald-500 font-bold">${pointsGained} pts</span>
+                    </div>
+                    <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                `;
+            }
+
+            // Award Points
+            score += pointsGained;
+            gameScore.textContent = score;
+            wordsFoundCount.textContent = foundWords.size;
+
+            showFeedback(`Found "${word}"! (+${pointsGained} pts)`, "success");
+
+            // Game End check
+            if (foundWords.size === words.length) {
+                triggerVictory();
+            }
+        }
+
+        function clearHighlight() {
+            document.querySelectorAll('#wordsearch-grid-container > div').forEach(el => {
+                el.classList.remove('cell-active');
+            });
+            selectedPath = [];
+        }
+
+        // Assist feature (Hint)
+        btnReveal.addEventListener('click', () => {
+            // Find a word not yet discovered
+            const remainingWordMeta = placedWordsMeta.filter(meta => !foundWords.has(meta.word));
+            if (remainingWordMeta.length === 0) return;
+
+            const targetMeta = remainingWordMeta[0];
+            const targetWord = targetMeta.word;
+            
+            // Highlight list word as clue
+            const listEl = document.getElementById(`wl-${targetWord}`);
+            if (listEl) {
+                listEl.classList.add('animate-pulse', 'border-amber-500/80', 'bg-amber-500/10');
+                setTimeout(() => {
+                    listEl.classList.remove('animate-pulse', 'border-amber-500/80', 'bg-amber-500/10');
+                }, 2000);
+            }
+
+            // Flash first and last letters on grid briefly
+            const firstCell = getCellEl(targetMeta.path[0].r, targetMeta.path[0].c);
+            const lastCell = getCellEl(targetMeta.path[targetMeta.path.length - 1].r, targetMeta.path[targetMeta.path.length - 1].c);
+            
+            if (firstCell && lastCell) {
+                firstCell.classList.add('cell-active');
+                lastCell.classList.add('cell-active');
+                setTimeout(() => {
+                    firstCell.classList.remove('cell-active');
+                    lastCell.classList.remove('cell-active');
+                }, 1500);
+            }
+
+            showFeedback(`Hint: Highlighted first/last letter of an elusive word!`, "info");
+            score = Math.max(0, score - 20); // Small penalty for hint usage
+            gameScore.textContent = score;
+        });
+
+        // Trigger Victory Event
+        function triggerVictory() {
+            stopTimer();
+            
+            const isZen = zenModeToggle.checked;
+            if (isZen) {
+                finalTimeSection.classList.add('hidden');
+            } else {
+                finalTimeSection.classList.remove('hidden');
+                finalTime.textContent = gameTimer.textContent;
+            }
+
+            finalScore.textContent = score;
+            successOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            createConfettiShower();
+        }
+
+        // Helpers
+        function getCellEl(r, c) {
+            return document.querySelector(`[data-row='${r}'][data-col='${c}']`);
+        }
+
+        // Confetti Celebration
+        function createConfettiShower() {
+            confettiContainer.innerHTML = '';
+            const count = 80;
+            const colors = ['#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b'];
+            
+            for (let i = 0; i < count; i++) {
+                const el = document.createElement('div');
+                el.className = 'confetti';
+                
+                // Random position and dynamics
+                el.style.left = `${Math.random() * 100}vw`;
+                el.style.top = `-20px`;
+                el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Add unique CSS Animation per piece
+                const scale = Math.random() * 0.6 + 0.6;
+                const rotate = Math.random() * 360;
+                el.style.transform = `scale(${scale}) rotate(${rotate}deg)`;
+                
+                confettiContainer.appendChild(el);
+                
+                // Animate via JS to prevent document-bloat CSS
+                const duration = Math.random() * 2 + 2;
+                const drift = Math.random() * 200 - 100;
+                
+                el.animate([
+                    { transform: `scale(${scale}) rotate(${rotate}deg) translateY(0)`, opacity: 1 },
+                    { transform: `scale(${scale}) rotate(${rotate + 720}deg) translateY(105vh) translateX(${drift}px)`, opacity: 0 }
+                ], {
+                    duration: duration * 1000,
+                    easing: 'cubic-bezier(.08,.82,.17,1)',
+                    fill: 'forwards'
+                });
+            }
+        }
+
+        // Zen Mode State Changes
+        zenModeToggle.addEventListener('change', () => {
+            startTimer();
+        });
+
+        // Connect user flow interactions
+        btnGenerate.addEventListener('click', initGame);
+        btnPlayAgain.addEventListener('click', () => {
+            successOverlay.classList.add('opacity-0', 'pointer-events-none');
+            initGame();
+        });
+
+        // Window load
+        window.onload = function () {
+            initGame();
+        };
+    </script>
+</body>
+</html>
