@@ -1,0 +1,28 @@
+0 FILE main.ldr
+0 Name: The thing
+1 15 72 -24 0 1 0 0 0 1 0 0 0 1 subModel-Thingy 1.ldr
+1 15 -128 -16 0 1 0 0 0 1 0 0 0 1 subModel-Thingy 1.ldr
+1 15 72 160 0 1 0 0 0 1 0 0 0 1 subModel-Thingy 1.ldr
+1 15 -136 152 0 1 0 0 0 1 0 0 0 1 subModel-Thingy 1.ldr
+0 FILE subModel-Thingy 1.ldr
+1 15 -40 0 0 1 0 0 0 1 0 0 0 1 228-2536.dat
+1 15 -56 16 8 1 0 0 0 1 0 0 0 1 228-2500-063.dat
+1 15 -56 -16 8 1 0 0 0 1 0 0 0 1 228-2500-063.dat
+1 15 -24 16 8 1 0 0 0 1 0 0 0 1 228-2500-063.dat
+1 15 -24 -16 8 1 0 0 0 1 0 0 0 1 228-2500-063.dat
+1 15 -40 0 8 -0.008727 0 -0.999962 0.999962 0 -0.008727 0 -1 0 228-2500-140.dat
+0 FILE subffhfhj-1.ldr
+0 FILE VEXCable-1.ldr
+0 Author: LDCad
+0 !KEYWORDS flexible, VEX, cable
+0 !LDCAD CONTENT [type=path] [addFallBack=default] [looped=false] [displayKind=mm] [curveStep=0] [displayLenCor=0]
+
+0 !LDCAD PATH_POINT [type=bezier] [posOri=0 0 14 0 0 1 -1 0 0 0 -1 0] [prevCPDist=25] [nextCPDist=25] [cirR=20] [cirDir=xyCW] [prevYRoll=0] [nextYRoll=0]
+0 !LDCAD PATH_POINT [type=bezier] [posOri=0 0 139 0 0 1 -1 0 0 0 -1 0] [prevCPDist=25] [nextCPDist=25] [cirR=20] [cirDir=xyCW] [prevYRoll=0] [nextYRoll=0]
+
+0 !LDCAD PATH_SKIN [donCol=0] [donOri=1 0 0 0 1 0 0 0 1] [donPart=ldcVexWireSeg.dat] [donYSize=400%] [donCen=absCen] [donCenYOfs=0] [donFinScale=fitDon2Seg] [donPlace=deform] [donYAlign=0] [donInline=false] [segSize=100%] [segSizeTol=5%] [segsCnt=0] [segsGrp=0] [segsMaxMerge=10] [segsMrgAng=0] [segsMrgRollAng=0] [segsEdgeDelKind=keepFirstLeft]
+
+0 !LDCAD PATH_CAP [group=start] [color=16] [posOri=0 0 9 1 0 0 0 -1 0 0 0 -1] [part=vexrj.dat] [extraLen=0mm] [inlineRef=false]
+0 !LDCAD PATH_CAP [group=end] [color=16] [posOri=0 0 144 1 0 0 0 1 0 0 0 1] [part=vexrj.dat] [extraLen=0mm] [inlineRef=false]
+
+0 !LDCAD GENERATED [generator=LDCad 1.7 Alpha 2a]
