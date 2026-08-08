@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Responsive ASCII Platformer</title>
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: #111;
+  }
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+let TILE, GRAVITY, JUMP, SPEED;
+
+// Resize & scale everything with window
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  TILE = Math.floor(canvas.height / 12);
+
+  // Physics scale with tile size
+  GRAVITY = TILE * 0.035;
+  JUMP = -TILE * 0.65;   // jump height ratio
+  SPEED = TILE * 0.12;
+
+  player.w = TILE * 0.8;
+  player.h = TILE * 0.8;
+}
+window.addEventListener("resize", resize);
+
+// ================= LEVEL =================
+const level = [
+  "................................................................................",
+  "................................................................................",
+  "..............#####.............................................................",
+  "..............................#####.............................................",
+  "........#####............................................................#####...",
+  "................................................................................",
+  "###############################................................#################"
+];
+
+const mapHeight = level.length;
+const mapWidth = level[0].length;
+
+// ================= INPUT =================
+const keys = {};
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+// ================= PLAYER =================
+const player = {
+  x: 0,
+  y: 0,
+  w: 0,
+  h: 0,
+  vx: 0,
+  vy: 0,
+  lastSafeX: 0
+};
+
+// Call resize AFTER player exists
+resize();
+player.x = TILE * 2;
+player.lastSafeX = player.x;
+
+// ================= COLLISION =================
+function tileAt(x, y) {
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(y / TILE);
+  if (ty < 0 || ty >= mapHeight || tx < 0 || tx >= mapWidth) return "#";
+  return level[ty][tx];
+}
+
+function collide(px, py) {
+  return (
+    tileAt(px, py) === "#" ||
+    tileAt(px + player.w, py) === "#" ||
+    tileAt(px, py + player.h) === "#" ||
+    tileAt(px + player.w, py + player.h) === "#"
+  );
+}
+
+// ================= GAME LOOP =================
+function update() {
+  // INPUT
+  player.vx = 0;
+  if (keys["ArrowLeft"]) player.vx = -SPEED;
+  if (keys["ArrowRight"]) player.vx = SPEED;
+  if (keys["ArrowDown"]) player.vy += GRAVITY;
+
+  // JUMP
+  if (keys["ArrowUp"]) {
+    player.y += 1;
+    if (collide(player.x, player.y)) {
+      player.vy = JUMP;
+    }
+    player.y -= 1;
+  }
+
+  // GRAVITY
+  player.vy += GRAVITY;
+
+  // HORIZONTAL MOVE
+  player.x += player.vx;
+  if (collide(player.x, player.y)) {
+    player.x -= player.vx;
+  }
+
+  // VERTICAL MOVE
+  player.y += player.vy;
+  if (collide(player.x, player.y)) {
+    player.y -= player.vy;
+    player.vy = 0;
+    player.lastSafeX = player.x;
+  }
+
+  // ☠️ DIE WHEN TOUCHING BOTTOM OF SCREEN
+  if (player.y + player.h >= canvas.height) {
+    player.x = Math.max(0, player.lastSafeX - TILE * 5);
+    player.y = 0;
+    player.vy = 0;
+  }
+}
+
+// ================= DRAW =================
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const camX = player.x - canvas.width / 2;
+
+  // Draw level
+  for (let y = 0; y < mapHeight; y++) {
+    for (let x = 0; x < mapWidth; x++) {
+      if (level[y][x] === "#") {
+        ctx.fillStyle = "#888";
+        ctx.fillRect(
+          x * TILE - camX,
+          y * TILE,
+          TILE,
+          TILE
+        );
+      }
+    }
+  }
+
+  // Draw player
+  ctx.fillStyle = "lime";
+  ctx.fillRect(
+    player.x - camX,
+    player.y,
+    player.w,
+    player.h
+  );
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
